@@ -1313,6 +1313,7 @@ public OnGameModeInit()
 	CreateJoinSmugglerPoint();
 	CreateJoinBaggagePoint();
 	CreateCarStealingPoint();
+	LoadMap();
 	
 	ResetCarStealing();
 
