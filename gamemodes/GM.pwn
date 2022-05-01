@@ -34,7 +34,6 @@
 #include <progress2>
 #include <Pawn.CMD>
 #include <selection>
-#include <eSelection>
 #include <FiTimestamp>
 #define ENABLE_3D_TRYG_YSI_SUPPORT
 #include <3DTryg>
@@ -420,11 +419,6 @@ enum
 	VEHICLE_MARIJUANA_WITHDRAW,
 	VEHICLE_MARIJUANA_DEPOSIT,
 	DIALOG_NONRPNAME,
-	DIALOG_FURNITURE,
-	DIALOG_FURNITURE_MENU,
-	DIALOG_FURNITURE_BUY,
-	DIALOG_FURNITURE_LIST,
-	MODEL_SELECTION_FURNITURE,
 }
 
 //-----[ Download System ]-----
@@ -872,10 +866,7 @@ enum E_PLAYERS
 	pPaintball,
 	pPaintball2,
 	//
-	pDelayIklan,
-	pListitem,
-	pEditing,
-	pEditType,
+	pDelayIklan
 };
 new pData[MAX_PLAYERS][E_PLAYERS];
 new g_MysqlRaceCheck[MAX_PLAYERS];
@@ -1273,7 +1264,6 @@ public OnGameModeInit()
 {
 	//mysql_log(ALL);
 	SetTimer("BotStatus", 1000, true);
-	Iter_Init(Furniture);
 	new MySQLOpt: option_id = mysql_init_options();
 
 	mysql_set_option(option_id, AUTO_RECONNECT, true);
@@ -3022,36 +3012,6 @@ public OnPlayerEditDynamicObject(playerid, STREAMER_TAG_OBJECT: objectid, respon
 			}
 		}
 	}
-	if(pData[playerid][pEditing] != -1)
-	{
-		new id = pData[playerid][pEditing];
-		if(response == EDIT_RESPONSE_FINAL)
-		{
-			if(pData[playerid][pEditType] == 1)
-			{
-				FurnitureData[id][furniturePos][0] = x;
-				FurnitureData[id][furniturePos][1] = y;
-				FurnitureData[id][furniturePos][2] = z;
-
-				FurnitureData[id][furnitureRot][0] = rx;
-				FurnitureData[id][furnitureRot][1] = ry;
-				FurnitureData[id][furnitureRot][2] = rz;
-
-				Furniture_Save(id);
-				Furniture_Refresh(id);
-
-				Servers(playerid, "You have successfully editing furniture ID: %d", id);
-			}
-		}		
-		if(response == EDIT_RESPONSE_CANCEL)
-		{
-			if(pData[playerid][pEditType] == 1)
-				Furniture_Refresh(id);
-
-			pData[playerid][pEditType] = -1;
-			pData[playerid][pEditing] = -1;
-		}
-	}	
 	return 1;
 }
 
@@ -4693,18 +4653,17 @@ public OnPlayerKeyStateChange(playerid, newkeys, oldkeys)
 				if(hData[hid][hLocked])
 					return Error(playerid, "This house is locked!");
 				
+				pData[playerid][pInHouse] = hid;
 				SetPlayerPositionEx(playerid, hData[hid][hIntposX], hData[hid][hIntposY], hData[hid][hIntposZ], hData[hid][hIntposA]);
 
 				SetPlayerInterior(playerid, hData[hid][hInt]);
-				SetPlayerVirtualWorld(playerid, hData[hid][hID] + 1000);
+				SetPlayerVirtualWorld(playerid, hid);
 				SetCameraBehindPlayer(playerid);
 				SetPlayerWeather(playerid, 0);
-
-				pData[playerid][pInHouse] = hData[hid][hID];
 			}
         }
-		new inhouseid;
-		if((inhouseid = House_Inside(playerid)) != -1 && IsPlayerInRangeOfPoint(playerid, 2.8, hData[inhouseid][hIntposX], hData[inhouseid][hIntposY], hData[inhouseid][hIntposZ]))
+		new inhouseid = pData[playerid][pInHouse];
+		if(pData[playerid][pInHouse] != -1 && IsPlayerInRangeOfPoint(playerid, 2.8, hData[inhouseid][hIntposX], hData[inhouseid][hIntposY], hData[inhouseid][hIntposZ]))
 		{
 			pData[playerid][pInHouse] = -1;
 			SetPlayerPositionEx(playerid, hData[inhouseid][hExtposX], hData[inhouseid][hExtposY], hData[inhouseid][hExtposZ], hData[inhouseid][hExtposA]);
@@ -6657,43 +6616,3 @@ public OnPlayerSelectionMenuResponse(playerid, extraid, response, listitem, mode
 	}
 	return 1;
 }	
-
-public OnModelSelectionResponse(playerid, extraid, index, modelid, response)
-{
-	if ((response) && (extraid == MODEL_SELECTION_FURNITURE))
-	{
-        new
-			id = House_Inside(playerid),
-			price;
-
-		new
-		    Float:x,
-		    Float:y,
-		    Float:z,
-		    Float:angle;
-
-        GetPlayerPos(playerid, x, y, z);
-        GetPlayerFacingAngle(playerid, angle);
-
-        x += 5.0 * floatsin(-angle, degrees);
-        y += 5.0 * floatcos(-angle, degrees);
-
-	    if (id != -1)
-	    {
-	        price = Furniture_ReturnPrice(pData[playerid][pListitem]);
-
-	        if (GetPlayerMoney(playerid) < price)
-	            return Error(playerid, "You have insufficient funds for the purchase.");
-
-			new furniture = Furniture_Add(House_Inside(playerid), GetFurnitureNameByModel(modelid), modelid, x, y, z, 0.0, 0.0, angle);
-
-			if(furniture == INVALID_ITERATOR_SLOT)
-				return Error(playerid, "The server cannot create more furniture's!");
-
-			GivePlayerMoneyEx(playerid, -price);
-			Servers(playerid, "You have purchased a \"%s\" for %s.", GetFurnitureNameByModel(modelid), FormatMoney(price));
-			Streamer_Update(playerid, STREAMER_TYPE_OBJECT);
-	    }
-	}
-	return 1;
-}
